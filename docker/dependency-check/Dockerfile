@@ -33,10 +33,12 @@ ENV DC_HOME=/usr/share/dependency-check
 ENV PATH="$DC_HOME/bin:$PATH"
 
 # Creating a directory for Dependency-Check and downloading the latest version
-RUN mkdir -p $DC_HOME && \
+RUN mkdir -p $DC_HOME/temp && \
     VERSION=$(curl -s https://jeremylong.github.io/DependencyCheck/current.txt) && \
-    wget -qO- "https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" -O dependency-check.zip && \
-    unzip dependency-check.zip -d $DC_HOME && \
+    wget -qO dependency-check.zip "https://github.com/jeremylong/DependencyCheck/releases/download/v$VERSION/dependency-check-$VERSION-release.zip" && \
+    unzip dependency-check.zip -d $DC_HOME/temp && \
+    mv $DC_HOME/temp/dependency-check/* $DC_HOME/ && \
+    rm -r $DC_HOME/temp && \
     rm dependency-check.zip
 
-
+RUN ln -s $DC_HOME/bin/dependency-check.sh /usr/bin/dependency-check
