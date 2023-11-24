@@ -1,12 +1,19 @@
 # https://github.com/jeremylong/DependencyCheck
+#docker build --build-arg NVD_API_KEY=$NVD_API_KEY -t dpcheck .
 FROM openjdk:8-jdk
+
+# Defining environment variables for Dependency-Check
+ENV GITHUB_URL="https://github.com/pablotoledo/starting-with-angular.git"
+ENV GITHUB_REPO_NAME="sample_repo"
+ARG NVD_API_KEY
+ENV NVD_API_KEY=${NVD_API_KEY}
 
 # Installing git
 RUN apt-get update && \
     apt-get install -y git
 
 # Installing nodejs
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+RUN curl -sL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs
 
 # Installing Yarn
@@ -42,3 +49,14 @@ RUN mkdir -p $DC_HOME/temp && \
     rm dependency-check.zip
 
 RUN ln -s $DC_HOME/bin/dependency-check.sh /usr/bin/dependency-check
+RUN dependency-check --updateonly --nvdApiKey $NVD_API_KEY --nvdApiDelay 20000
+
+# Copy the start.sh script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Create a workspace directory
+WORKDIR /workspace
+
+# Command to run the start.sh script
+CMD ["/start.sh"]

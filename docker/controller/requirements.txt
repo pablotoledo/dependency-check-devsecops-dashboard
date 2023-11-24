@@ -1,1 +1,2 @@
 github-utils-api
+kubernetes==18.20.0

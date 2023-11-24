@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dpcheck-controller-job
+  namespace: dependency-check-devsecops-ns
+spec:
+  template:
+    metadata:
+      labels:
+        app: dpcheck-controller
+    spec:
+      serviceAccountName: dpcheck-controller-sa
+      restartPolicy: OnFailure
+      containers:
+      - name: dpcheck-controller-container
+        image: jtoledog/dpcheck-orchestrator:latest
+        env:
+        - name: GITHUB_USER
+          valueFrom:
+            secretKeyRef:
+              name: github-secrets
+              key: GITHUB_USER
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-secrets
+              key: GITHUB_TOKEN
+        - name: GITHUB_URL
+          valueFrom:
+            secretKeyRef:
+              name: github-secrets
+              key: GITHUB_URL
+        - name: GITHUB_ORGANIZATION
+          valueFrom:
+            secretKeyRef:
+              name: github-secrets
+              key: GITHUB_ORGANIZATION
+        resources:
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+          requests:
+            cpu: "0.5"
+            memory: "1Gi"
