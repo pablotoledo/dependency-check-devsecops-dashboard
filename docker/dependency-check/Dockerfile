@@ -51,12 +51,12 @@ RUN mkdir -p $DC_HOME/temp && \
 RUN ln -s $DC_HOME/bin/dependency-check.sh /usr/bin/dependency-check
 RUN dependency-check --updateonly --nvdApiKey $NVD_API_KEY --nvdApiDelay 20000
 
-# Copy the start.sh script
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
 # Create a workspace directory
 WORKDIR /workspace
 
+# Copy the start.sh script into the workspace directory
+COPY start.sh /workspace/start.sh
+RUN chmod +x /workspace/start.sh
+
 # Command to run the start.sh script
-CMD ["/start.sh"]
+CMD ["/workspace/start.sh"]
