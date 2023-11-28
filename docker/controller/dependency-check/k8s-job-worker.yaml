@@ -13,7 +13,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: dpcheck-worker-container
-        image: jtoledog/dpcheck-orchestrator:latest
+        image: jtoledog/dpcheck:latest
         env:
         - name: GITHUB_REPO_NAME
           value: "your_github_reponame"
@@ -32,4 +32,4 @@ spec:
       volumes:
       - name: github-data
         persistentVolumeClaim:
-          claimName: github-data-pvc
+          claimName: dependencycheck-data-pvc
