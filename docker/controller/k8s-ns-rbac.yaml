@@ -39,10 +39,3 @@ roleRef:
   kind: Role
   name: deployment-manager
   apiGroup: rbac.authorization.k8s.io
-
-# Pod Deployment
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: dependency-check-devsecops-ns

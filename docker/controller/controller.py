@@ -4,11 +4,13 @@ from githubutilsapi import GithubUtilsApi
 from kubernetes import client, config
 import yaml
 from queue import Queue
+import uuid
+import re
 
 # K8s configuration
 MAX_REPLICAS = int(os.environ.get("ADO_MAX_SELF_HOSTED_AGENTS", 5))
 NAMESPACE = 'dependency-check-devsecops-ns'
-LABEL_SELECTOR = "role=dcheck-node"
+LABEL_SELECTOR = "app=dpcheck-worker"
 
 # Load K8s configuration
 config.load_incluster_config()
@@ -37,13 +39,30 @@ def get_plain_repo_list():
 
 #### K8S API ####
 
-def create_k8s_job(repo_name, repo_url):
-    # Load the kubeconfig file
-    config.load_kube_config()
+def sanitize_job_name(name):
+    # Convertir a minúsculas y reemplazar caracteres no permitidos con guiones
+    sanitized_name = re.sub(r'[^a-z0-9-]', '-', name.lower())
 
+    # Asegurarse de que el nombre comience y termine con un carácter alfanumérico
+    sanitized_name = sanitized_name.strip("-")
+
+    # Acortar el nombre si es necesario
+    return sanitized_name[:63]
+
+
+def create_k8s_job(repo_name, repo_url):
     # Read the job description from the YAML file
     with open("/app/k8s-job-worker.yaml") as file:
         job_yaml = yaml.safe_load(file)
+
+    # Generate a unique name for the job
+    shortened_repo_name = repo_name[:10]  # Ajusta según sea necesario
+    unique_id = str(uuid.uuid4())[:8]    # Usamos solo los primeros 8 caracteres del UUID
+    unique_job_name = sanitize_job_name(f"{shortened_repo_name}-{unique_id}")
+    if len(unique_job_name) > 63:
+        unique_job_name = unique_job_name[:63]
+
+    job_yaml['metadata']['name'] = unique_job_name
 
     # Modify the environment variables
     for env_var in job_yaml['spec']['template']['spec']['containers'][0]['env']:
@@ -56,17 +75,23 @@ def create_k8s_job(repo_name, repo_url):
     k8s_client = client.BatchV1Api()
     job = k8s_client.create_namespaced_job(
         body=job_yaml,
-        namespace="default"
+        namespace=NAMESPACE
     )
-    print("Job created")
+    print(f"Job {unique_job_name} created")
 
-def get_active_jobs_count():
+def get_active_and_pending_jobs_count():
     """
-    Return the number of active jobs.
+    Return the number of active and pending jobs.
     """
     jobs = batch_v1.list_namespaced_job(NAMESPACE, label_selector=LABEL_SELECTOR)
-    active_jobs = [job for job in jobs.items if job.status.active]
-    return len(active_jobs)
+
+    active_and_pending_jobs = [job for job in jobs.items if 
+                               job.status.active or 
+                               (job.status.conditions and 
+                                all(cond.status != 'True' or cond.type not in ['Complete', 'Failed'] for cond in job.status.conditions))]
+    
+    return len(active_and_pending_jobs)
+
 
 def clean_up_completed_jobs():
     """
@@ -94,7 +119,8 @@ def process_repositories():
         pending_jobs_queue.put(repo)
 
     while not pending_jobs_queue.empty():
-        active_jobs_count = get_active_jobs_count()
+        active_jobs_count = get_active_and_pending_jobs_count()
+        print(f"Active and Pending Jobs: {active_jobs_count}")
         
         if active_jobs_count < MAX_REPLICAS:
             repo = pending_jobs_queue.get()

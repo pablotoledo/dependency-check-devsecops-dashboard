@@ -1,3 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dpcheck-worker-sa
+  namespace: dependency-check-devsecops-ns
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
