@@ -22,6 +22,11 @@ spec:
           value: "your_github_reponame"
         - name: GITHUB_URL
           value: "your_github_url"
+        - name: INFLUXDB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: github-secrets
+              key: INFLUXDB_TOKEN
         #- name: http_proxy
         #  value: "yourproxy"
         #- name: https_proxy
