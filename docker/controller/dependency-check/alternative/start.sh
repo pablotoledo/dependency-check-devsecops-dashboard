@@ -25,8 +25,18 @@ fi
 folder=$(date +%Y-%m-%d_%H-%M-%S)
 mkdir -p /data/$GITHUB_REPO_NAME/$folder
 
-# Move the dependency-check reports to the folder
-mv dependency-check-report.json /data/$GITHUB_REPO_NAME/$folder
-mv dependency-check-report.html /data/$GITHUB_REPO_NAME/$folder
+# Copy the dependency-check reports to the folder
+#cp dependency-check-report.json /data/$GITHUB_REPO_NAME/$folder
+#cp dependency-check-report.html /data/$GITHUB_REPO_NAME/$folder
 
+#sleep 600
 
+# Verificar que el archivo JSON existe y luego procesarlo
+if [ -f "dependency-check-report.json" ]; then
+    echo "Found dependency-check-report.json, processing..."
+    python3 ../feed_mongo.py "$(pwd)/dependency-check-report.json" "$GITHUB_REPO_NAME"
+else
+    echo "El archivo JSON no se encontró."
+fi
+
+#sleep 25

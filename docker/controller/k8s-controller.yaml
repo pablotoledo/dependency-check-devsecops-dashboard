@@ -41,6 +41,14 @@ spec:
             secretKeyRef:
               name: github-secrets
               key: GITHUB_ORGANIZATION
+        #- name: http_proxy
+        #  value: "yourproxy"
+        #- name: https_proxy
+        #  value: "yourproxy"
+        #- name: HTTP_PROXY
+        #  value: "yourproxy"
+        #- name: HTTPS_PROXY
+        #  value: "yourproxy"
         resources:
           limits:
             cpu: "1"

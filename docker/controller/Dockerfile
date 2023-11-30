@@ -4,6 +4,9 @@ FROM python:3.8-slim-buster
 # Set the working directory in the container to /app
 WORKDIR /app
 
+# Set environment variable to disable Python stdout buffering
+ENV PYTHONUNBUFFERED=1
+
 # Copy the current directory contents into the container at /app
 COPY . /app
 COPY dependency-check/k8s-job-worker.yaml /app/k8s-job-worker.yaml

@@ -6,6 +6,8 @@ import yaml
 from queue import Queue
 import uuid
 import re
+import urllib.parse
+
 
 # K8s configuration
 MAX_REPLICAS = int(os.environ.get("ADO_MAX_SELF_HOSTED_AGENTS", 5))
@@ -64,12 +66,18 @@ def create_k8s_job(repo_name, repo_url):
 
     job_yaml['metadata']['name'] = unique_job_name
 
+    # Insert the GitHub token into the repo URL
+    parsed_url = list(urllib.parse.urlparse(repo_url))
+    parsed_url[1] = f"{gh_token}@{parsed_url[1]}"
+
+    secure_repo_url = urllib.parse.urlunparse(parsed_url)
+
     # Modify the environment variables
     for env_var in job_yaml['spec']['template']['spec']['containers'][0]['env']:
         if env_var['name'] == 'GITHUB_REPO_NAME':
             env_var['value'] = repo_name
         elif env_var['name'] == 'GITHUB_URL':
-            env_var['value'] = repo_url
+            env_var['value'] = secure_repo_url
 
     # Create the Job
     k8s_client = client.BatchV1Api()
@@ -84,31 +92,34 @@ def get_active_and_pending_jobs_count():
     Return the number of active and pending jobs.
     """
     jobs = batch_v1.list_namespaced_job(NAMESPACE, label_selector=LABEL_SELECTOR)
-
-    active_and_pending_jobs = [job for job in jobs.items if 
-                               job.status.active or 
-                               (job.status.conditions and 
-                                all(cond.status != 'True' or cond.type not in ['Complete', 'Failed'] for cond in job.status.conditions))]
     
-    return len(active_and_pending_jobs)
+    count = 0
+    for job in jobs.items:
+        if job.status.active:
+            count += 1
+        elif not job.status.conditions:  # Job is pending if no conditions are set
+            count += 1
+
+    return count
 
 
 def clean_up_completed_jobs():
     """
-    Remove the completed jobs.
+    Remove the completed and failed jobs.
     """
-    completed_jobs = batch_v1.list_namespaced_job(
+    jobs = batch_v1.list_namespaced_job(
         namespace=NAMESPACE, 
         label_selector=LABEL_SELECTOR
     ).items
 
-    for job in completed_jobs:
+    for job in jobs:
         if job.status.succeeded or job.status.failed:
             batch_v1.delete_namespaced_job(
                 name=job.metadata.name,
                 namespace=NAMESPACE,
                 body=client.V1DeleteOptions(propagation_policy='Foreground')
             )
+            print(f"Deleted job {job.metadata.name}")
 
 def process_repositories():
     """
@@ -120,16 +131,16 @@ def process_repositories():
 
     while not pending_jobs_queue.empty():
         active_jobs_count = get_active_and_pending_jobs_count()
-        print(f"Active and Pending Jobs: {active_jobs_count}")
-        
+
         if active_jobs_count < MAX_REPLICAS:
             repo = pending_jobs_queue.get()
             create_k8s_job(repo['name'], repo['html_url'])
         else:
-            print("Waiting available resources...")
-            time.sleep(10)  # Await 10 seconds
+            print(f"Reached max replicas limit ({MAX_REPLICAS}). Waiting for available resources...")
+            print(f"The length of the queue is {pending_jobs_queue.qsize()}")
+            time.sleep(10)
 
-        clean_up_completed_jobs()
+    clean_up_completed_jobs()
 
 # Start the job creation process
 process_repositories()
